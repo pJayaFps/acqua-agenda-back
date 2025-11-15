@@ -1,4 +1,3 @@
-// src/routes/lavagens.js
 const express = require('express');
 const router = express.Router();
 const Lavagem = require('../models/Lavagem');
@@ -28,29 +27,44 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Listar todas (com opcional paginação)
+// Listar lavagens
 router.get('/', async (req, res) => {
   try {
-    // Filtros: placa (exata ou parte), data, tipo
     const { placa, data, tipo } = req.query;
     const filtro = {};
+
+    // Filtro por placa
     if (placa) filtro.placa = { $regex: placa.trim().toUpperCase(), $options: 'i' };
+    
+    // Filtro por tipo
     if (tipo && (tipo === 'simples' || tipo === 'especial')) filtro.tipo_lavagem = tipo;
+
+    // Determinar data
     if (data) {
-      // espera data no formato YYYY-MM-DD
-      const inicio = new Date(data + 'T00:00:00.000Z');
-      const fim = new Date(data + 'T23:59:59.999Z');
-      filtro.data_hora = { $gte: inicio, $lte: fim };
+      // Pesquisa por dia específico
+      const [ano, mes, dia] = data.split("-").map(Number);
+      const inicio = new Date(ano, mes - 1, dia, 0, 0, 0);
+      const fim = new Date(ano, mes - 1, dia + 1, 0, 0, 0);
+      filtro.data_hora = { $gte: inicio, $lt: fim };
+    } else {
+      // Sem query → mostrar apenas lavagens de hoje
+      const hoje = new Date();
+      hoje.setHours(0,0,0,0);
+      const amanha = new Date(hoje);
+      amanha.setDate(amanha.getDate() + 1);
+      filtro.data_hora = { $gte: hoje, $lt: amanha };
     }
+
     const lavagens = await Lavagem.find(filtro).sort({ data_hora: -1 }).limit(1000);
     return res.json(lavagens);
+
   } catch (err) {
     console.error('Erro listar lavagens:', err);
     return res.status(500).json({ erro: 'Erro interno ao listar lavagens' });
   }
 });
 
-// Buscar por id (opcional)
+// Buscar por id
 router.get('/:id', async (req, res) => {
   try {
     const lavagem = await Lavagem.findById(req.params.id);
