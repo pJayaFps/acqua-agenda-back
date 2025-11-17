@@ -82,17 +82,23 @@ app.get("/api/relatorio/dia", async (req, res) => {
 app.get("/api/relatorio/mensal", async (req, res) => {
     try {
         const agora = new Date();
-        const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
-        const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
+
+        // Ajustar datas corretamente com hora zerada
+        const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1, 0, 0, 0);
+        const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 1, 0, 0, 0);
+
+        const filtro = {
+            data_hora: { $gte: inicioMes, $lt: fimMes }
+        };
 
         const simples = await Lavagem.countDocuments({
             tipo_lavagem: "simples",
-            data_hora: { $gte: inicioMes, $lt: fimMes }
+            ...filtro
         });
 
         const especial = await Lavagem.countDocuments({
             tipo_lavagem: "especial",
-            data_hora: { $gte: inicioMes, $lt: fimMes }
+            ...filtro
         });
 
         res.json({
@@ -103,10 +109,11 @@ app.get("/api/relatorio/mensal", async (req, res) => {
         });
 
     } catch (err) {
-        console.error(err);
+        console.error("Erro no relatório mensal:", err);
         res.status(500).json({ error: "Erro no relatório mensal" });
     }
 });
+
 
 app.get("/api/relatorio/por-dia", async (req, res) => {
     try {

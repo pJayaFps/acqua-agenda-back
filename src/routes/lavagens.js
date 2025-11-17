@@ -7,20 +7,44 @@ const validarPlaca = require('../utils/validarPlaca');
 router.post('/', async (req, res) => {
   try {
     const { placa, tipo_lavagem } = req.body;
+
     if (!placa || !tipo_lavagem) {
       return res.status(400).json({ erro: 'placa e tipo_lavagem são obrigatórios' });
     }
+
     if (!validarPlaca(placa)) {
       return res.status(400).json({ erro: 'placa inválida' });
     }
+
+    const placaUpper = placa.toUpperCase();
+
+    // 🔥 CALCULAR JANELA DE 24H PARA BLOQUEIO
+    const agora = new Date();
+    const limite24h = new Date(agora.getTime() - 24 * 60 * 60 * 1000);
+
+    // 🔥 VERIFICAR SE A PLACA JÁ FOI REGISTRADA NAS ÚLTIMAS 24H
+    const existe = await Lavagem.findOne({
+      placa: placaUpper,
+      data_hora: { $gte: limite24h }
+    });
+
+    if (existe) {
+      return res.status(400).json({
+        erro: `A placa ${placaUpper} já foi registrada nas últimas 24 horas`
+      });
+    }
+
     const especial = tipo_lavagem === 'especial';
+
     const nova = new Lavagem({
-      placa: placa.toUpperCase(),
+      placa: placaUpper,
       tipo_lavagem,
       especial
     });
+
     const salva = await nova.save();
     return res.status(201).json(salva);
+
   } catch (err) {
     console.error('Erro registrar lavagem:', err);
     return res.status(500).json({ erro: 'Erro interno ao registrar lavagem' });
@@ -33,23 +57,20 @@ router.get('/', async (req, res) => {
     const { placa, data, tipo } = req.query;
     const filtro = {};
 
-    // Filtro por placa
     if (placa) filtro.placa = { $regex: placa.trim().toUpperCase(), $options: 'i' };
-    
-    // Filtro por tipo
-    if (tipo && (tipo === 'simples' || tipo === 'especial')) filtro.tipo_lavagem = tipo;
 
-    // Determinar data
+    if (tipo && (tipo === 'simples' || tipo === 'especial')) {
+      filtro.tipo_lavagem = tipo;
+    }
+
     if (data) {
-      // Pesquisa por dia específico
       const [ano, mes, dia] = data.split("-").map(Number);
       const inicio = new Date(ano, mes - 1, dia, 0, 0, 0);
       const fim = new Date(ano, mes - 1, dia + 1, 0, 0, 0);
       filtro.data_hora = { $gte: inicio, $lt: fim };
     } else {
-      // Sem query → mostrar apenas lavagens de hoje
       const hoje = new Date();
-      hoje.setHours(0,0,0,0);
+      hoje.setHours(0, 0, 0, 0);
       const amanha = new Date(hoje);
       amanha.setDate(amanha.getDate() + 1);
       filtro.data_hora = { $gte: hoje, $lt: amanha };
