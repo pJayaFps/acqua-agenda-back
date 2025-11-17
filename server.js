@@ -37,31 +37,35 @@ app.get("/api/relatorio/dia", async (req, res) => {
     try {
         console.log("➡ Entrou no relatório diário.");
 
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
+        // Pegamos a data atual em LOCAL
+        const agora = new Date();
 
-        const amanha = new Date(hoje);
-        amanha.setDate(hoje.getDate() + 1);
+        // Criamos o início do dia LOCAL
+        const inicio = new Date(
+            agora.getFullYear(),
+            agora.getMonth(),
+            agora.getDate(),
+            0, 0, 0
+        );
 
-        console.log("Hoje:", hoje);
-        console.log("Amanhã:", amanha);
+        // Convertendo para UTC
+        const inicioUTC = new Date(inicio.getTime() + 3 * 60 * 60 * 1000);
 
-        // Teste 1 — Ver se o model existe
-        console.log("Model Lavagem:", Lavagem);
+        // Fim do dia local convertido para UTC
+        const fimUTC = new Date(inicioUTC.getTime() + 24 * 60 * 60 * 1000);
 
-        // Teste 2 — Teste simples do Mongo
-        const test = await Lavagem.findOne({});
-        console.log("Primeiro registro no banco:", test);
+        console.log("Início (LOCAL):", inicio);
+        console.log("Inicio UTC:", inicioUTC);
+        console.log("Fim UTC:", fimUTC);
 
-        // CONTAGEM REAL
         const simples = await Lavagem.countDocuments({
             tipo_lavagem: "simples",
-            data_hora: { $gte: hoje, $lt: amanha }
+            data_hora: { $gte: inicioUTC, $lt: fimUTC }
         });
 
         const especial = await Lavagem.countDocuments({
             tipo_lavagem: "especial",
-            data_hora: { $gte: hoje, $lt: amanha }
+            data_hora: { $gte: inicioUTC, $lt: fimUTC }
         });
 
         res.json({
@@ -76,6 +80,7 @@ app.get("/api/relatorio/dia", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
 
