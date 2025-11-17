@@ -123,28 +123,25 @@ app.get("/api/relatorio/por-dia", async (req, res) => {
             return res.status(400).json({ error: "Envie a data no formato YYYY-MM-DD" });
         }
 
-        // Extrair ano, mês e dia manualmente
+        // Extrair ano, mês e dia manualmente (sem UTC)
         const [ano, mes, dia] = data.split("-").map(Number);
 
-        // Criar a data no fuso local, SEM UTC
-        const inicio = new Date(ano, mes - 1, dia, 0, 0, 0);    // 00:00 local
-        const fim = new Date(ano, mes - 1, dia + 1, 0, 0, 0);  // próximo dia 00:00 local
+        // Criar faixa de datas NO FUSO LOCAL (sem UTC)
+        const inicio = new Date(ano, mes - 1, dia, 0, 0, 0);    
+        const fim = new Date(ano, mes - 1, dia, 23, 59, 59);
 
         const simples = await Lavagem.countDocuments({
             tipo_lavagem: "simples",
-            data_hora: { $gte: inicio, $lt: fim }
+            data_hora: { $gte: inicio, $lte: fim }
         });
 
         const especial = await Lavagem.countDocuments({
             tipo_lavagem: "especial",
-            data_hora: { $gte: inicio, $lt: fim }
+            data_hora: { $gte: inicio, $lte: fim }
         });
 
-        const diaCorrigido = new Date(inicio);
-        diaCorrigido.setHours(diaCorrigido.getHours() + 3);
-
         res.json({
-            data: diaCorrigido.toLocaleDateString("pt-BR"),
+            data: `${dia}/${mes}/${ano}`,
             total: simples + especial,
             simples,
             especial
@@ -155,6 +152,7 @@ app.get("/api/relatorio/por-dia", async (req, res) => {
         res.status(500).json({ error: "Erro no relatório por dia" });
     }
 });
+
 
 
 app.get('/', (req, res) => {
