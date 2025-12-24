@@ -39,7 +39,8 @@ router.post('/', async (req, res) => {
     const nova = new Lavagem({
       placa: placaUpper,
       tipo_lavagem,
-      especial
+      especial,
+      valor: 25
     });
 
     const salva = await nova.save();
